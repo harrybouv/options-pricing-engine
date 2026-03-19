@@ -10,37 +10,84 @@ S0 = 152 # initial price
 K = 160 # strike CHANGE  <------
 
 
-def bs_call_price(S0, K, r, q, T, sigma):
+def bs_price(S, K, r, q, T, sigma, option_type="call"):
+    option_type = option_type.lower()
 
     if T <= 0:
-        return max(S0 - K, 0.0)
+        if option_type == "call":
+            return 0, 0, max(S - K, 0)
+        else:
+            return 0, 0, max (K - S, 0)
+
     if sigma <= 0:
-        # deterministic limit
-        forward = S0 * np.exp((r - q) * T)
-        return np.exp(-r * T) * max(forward - K, 0.0)
+        forward = S * np.exp((r - q) * T)
+        disc = np.exp(-r * T)
 
-    d1 = (np.log(S0 / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-    d2 = d1 - sigma * np.sqrt(T)
-    return d1, d2, S0 * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+        if option_type == "call":
+            price = disc * max(forward - K, 0.0)
+        else:
+            price = disc * max(K - forward, 0.0)
 
+        return 0.0, 0.0, price
 
-def bs_call_greeks(S, K, r, q, T, sigma):
-    d1, d2, _ = bs_call_price(S, K, r, q, T, sigma)
+    sqrtT = np.sqrt(T)
+    d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * sqrtT)
+    d2 = d1 - sigma * sqrtT
 
-    Nd1 = norm.cdf(d1)
-    Nd2 = norm.cdf(d2)
-    pdf_d1 = norm.pdf(d1)
+    disc_q = np.exp(-q * T)
+    disc_r = np.exp(-r * T)
+
+    if option_type == "call":
+        price = S * disc_q * norm.cdf(d1) - K * disc_r * norm.cdf(d2)
+    else:
+        price = K * disc_r * norm.cdf(-d2) - S * disc_q * norm.cdf(-d1)
+
+    return d1, d2, price
+
+def bs_greeks(S, K, r, q, T, sigma, option_type="call"):
+    option_type = option_type.lower()
+
+    if option_type not in {"call", "put"}:
+        raise ValueError("option_type must be 'call' or 'put'")
+
+    d1, d2, price = bs_price(S, K, r, q, T, sigma, option_type=option_type)
+
+    if T <= 0 or sigma <= 0:
+        return {
+            "price": float(price),
+            "delta": np.nan,
+            "gamma": np.nan,
+            "vega": np.nan,
+            "theta": np.nan,
+            "rho": np.nan,
+            "d1": float(d1),
+            "d2": float(d2),
+        }
 
     disc_q = np.exp(-q * T)
     disc_r = np.exp(-r * T)
     sqrtT = np.sqrt(T)
+    pdf_d1 = norm.pdf(d1)
 
-    price = S * disc_q * Nd1 - K * disc_r * Nd2
-    delta = disc_q * Nd1
     gamma = (disc_q * pdf_d1) / (S * sigma * sqrtT)
     vega = S * disc_q * pdf_d1 * sqrtT
-    theta = -(S * disc_q * pdf_d1 * sigma) / (2 * sqrtT) - r * K * disc_r * Nd2 + q * S * disc_q * Nd1
-    rho = K * T * disc_r * Nd2
+
+    if option_type == "call":
+        delta = disc_q * norm.cdf(d1)
+        theta = (
+            -(S * disc_q * pdf_d1 * sigma) / (2 * sqrtT)
+            - r * K * disc_r * norm.cdf(d2)
+            + q * S * disc_q * norm.cdf(d1)
+        )
+        rho = K * T * disc_r * norm.cdf(d2)
+    else:
+        delta = disc_q * (norm.cdf(d1) - 1)
+        theta = (
+            -(S * disc_q * pdf_d1 * sigma) / (2 * sqrtT)
+            + r * K * disc_r * norm.cdf(-d2)
+            - q * S * disc_q * norm.cdf(-d1)
+        )
+        rho = -K * T * disc_r * norm.cdf(-d2)
 
     return {
         "price": float(price),
@@ -52,6 +99,9 @@ def bs_call_greeks(S, K, r, q, T, sigma):
         "d1": float(d1),
         "d2": float(d2),
     }
+
+
+
 
 
 

@@ -29,7 +29,19 @@ def GBM_plot():
     return t, s
 
 
-def main():
+def plot_GBM_paths():
+
+    time_horizon = 365  # duration / days
+    T = 1  # years
+    sigma = 0.25  # volatility
+    r = 0.04  # risk-free rate
+    q = 0.015  # divedend yield
+    mu = r - q  # drift
+    S0 = 152  # initial price
+    K = 160  # strike
+    delta_t = T / time_horizon
+    iterations = 10000
+
     t = np.arange(time_horizon) * delta_t
     paths = np.zeros((iterations, time_horizon))
     paths[:, 0] = S0
@@ -71,14 +83,14 @@ def main():
     plt.legend()
     plt.show()
 
-    _,_,price = bs.bs_call_price(S0, K, r, q, T, sigma)
+    _,_,price = bs.bs_price(S0, K, r, q, T, sigma)
     print("Average Payoff: ", payoffs.mean())
     print("Estimated Option Price:", V)
     print("Black Scholes Price: ", price )
     return t, paths, terminal_prices
 
 if __name__ == "__main__":
-    main()
+    plot_GBM_paths()
 
 
 

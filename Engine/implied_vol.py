@@ -1,54 +1,60 @@
-from Black_Scholes import bs_call_price, bs_call_greeks
 import numpy as np
 from scipy.optimize import brentq
+from Black_Scholes import bs_price, bs_greeks
 
 
-#parameters - same as GBM - not ingesting data yet (use yahoo finance api)
-T = 1 # years
-sigma = 0.25 #volatility
-r = 0.04 #risk-free rate
-q = 0.015 #divedend yield
-S0 = 152 # initial price
-K = 160 # strike CHANGE  <------
+def check_arbitrage(S, K, r, q, T, market_price, option_type="call"):
+    option_type = option_type.lower()
 
+    disc_q = np.exp(-q * T)
+    disc_r = np.exp(-r * T)
 
-def check_arbitrage(S0, K, r, q, T, market_price):
-    lower_bound = max(S0*np.exp(-q*T) - K*np.exp(-r*T), 0)
-    upper_bound = S0* np.exp(-q*T)
-
-    if lower_bound <= market_price <= upper_bound:
-        return True
+    if option_type == "call":
+        lower_bound = max(S * disc_q - K * disc_r, 0.0)
+        upper_bound = S * disc_q
+    elif option_type == "put":
+        lower_bound = max(K * disc_r - S * disc_q, 0.0)
+        upper_bound = K * disc_r
     else:
-        return False
+        raise ValueError("option_type must be 'call' or 'put'")
+
+    return lower_bound <= market_price <= upper_bound
 
 
-def implied_vol_newton(S0, K, r, q, T, market_price, sigma0=0.2, tol=1e-8, max_iter=100):
+def implied_vol_newton(
+    S, K, r, q, T, market_price, option_type="call",
+    sigma0=0.2, tol=1e-8, max_iter=100
+):
+    sigma_est = sigma0
 
     for _ in range(max_iter):
-        _, _, model_price = bs_call_price(S0, K, r, q, T, sigma)
-        greeks = bs_call_greeks(S0, K, r, q, T, sigma)
+        _, _, model_price = bs_price(S, K, r, q, T, sigma_est, option_type=option_type)
+        greeks = bs_greeks(S, K, r, q, T, sigma_est, option_type=option_type)
         vega = greeks["vega"]
 
         error = model_price - market_price
 
         if abs(error) < tol:
-            return sigma
+            return sigma_est
 
-        if abs(vega) < 1e-12:
+        if not np.isfinite(vega) or abs(vega) < 1e-12:
             raise ValueError("Vega too small for stable Newton iteration.")
 
-        sigma = sigma - error / vega
+        sigma_est = sigma_est - error / vega
 
-        if sigma <= 0:
-            raise ValueError("Newton iteration produced non-positive volatility.")
+        if sigma_est <= 0 or not np.isfinite(sigma_est):
+            raise ValueError("Newton iteration produced invalid volatility.")
 
     raise RuntimeError("Newton method failed to converge within max_iter.")
 
 
-def implied_vol_brent(S0, K, r, q, T, market_price, sigma_low=1e-6, sigma_high=5.0):
-
+def implied_vol_brent(
+    S, K, r, q, T, market_price, option_type="call",
+    sigma_low=1e-6, sigma_high=5.0
+):
     def f(sigma):
-        return bs_call_price(S0, K, r, q, T, sigma) - market_price
+        _, _, price = bs_price(S, K, r, q, T, sigma, option_type=option_type)
+        return price - market_price
 
     f_low = f(sigma_low)
     f_high = f(sigma_high)
@@ -59,28 +65,17 @@ def implied_vol_brent(S0, K, r, q, T, market_price, sigma_low=1e-6, sigma_high=5
     return brentq(f, sigma_low, sigma_high)
 
 
-def main():
-    _, _, market_price = bs_call_price(S0, K, r, q, T, sigma)
-    newton_success = False
+def implied_vol(S, K, r, q, T, market_price, option_type="call"):
+    if T <= 0:
+        raise ValueError("Implied vol undefined for T <= 0.")
 
-    if check_arbitrage(S0, K, r, q, T, market_price):
-        try:
-            iv = implied_vol_newton(S0, K, r, q, T, market_price)
-            print("Implied volatility: ", round(iv,3))
-            newton_success = True
-            return newton_success
-        except ValueError:
-            print("Vega too small for stable Newton iteration.")
-        except RuntimeError:
-            print("Newton method failed to converge.")
+    if market_price <= 0:
+        raise ValueError("Market price must be positive.")
 
-    else:
-        print("Market price violates no-arbitrage bounds.")
+    if not check_arbitrage(S, K, r, q, T, market_price, option_type=option_type):
+        raise ValueError("Market price violates no-arbitrage bounds.")
 
-    if not newton_success:
-        print("Implied volatility:",round (implied_vol_brent(S0, K, r, q, T, market_price),3))
-
-
-
-if __name__ == '__main__':
-    main()
+    try:
+        return implied_vol_newton(S, K, r, q, T, market_price, option_type=option_type)
+    except (ValueError, RuntimeError):
+        return implied_vol_brent(S, K, r, q, T, market_price, option_type=option_type)
