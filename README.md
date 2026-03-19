@@ -22,7 +22,7 @@ The aim of the project was to explore numerical methods for derivatives pricing 
 ## Project Structure
 
 
-demo_options.py
+demo_options.py         
 Black_Scholes.py – pricing and Greeks  
 implied_vol.py – implied volatility solver  
 GBM_plot.py – geometric Brownian motion path simulation  
