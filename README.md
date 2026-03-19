@@ -21,23 +21,8 @@ The aim of the project was to explore numerical methods for derivatives pricing 
 
 ## Project Structure
 
-Engine/
-    Black_Scholes.py
-    implied_vol.py
-    GBM_plot.py
-    GBM_terminal.py
-    market_data.py
-    volatility_surface.py
 
 demo_options.py
-
-Figures/
-    se_vs_paths.png
-    iv_smile.png
-    iv_surface.png
-    gbm_paths.png
-
-
 Black_Scholes.py – pricing and Greeks  
 implied_vol.py – implied volatility solver  
 GBM_plot.py – geometric Brownian motion path simulation  
