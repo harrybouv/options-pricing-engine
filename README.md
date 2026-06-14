@@ -1,124 +1,149 @@
-# Options Pricing Engine and Volatility Surface in Python
+# Options Pricing & Volatility Analytics Platform
 
-This project implements a small options analytics engine in Python, including Black–Scholes pricing, implied volatility extraction, Monte Carlo simulation with variance reduction, and construction of implied volatility smiles and surfaces using live market data.
+A modular derivatives analytics platform built in Python with a FastAPI backend and React frontend.
 
-The aim of the project was to explore numerical methods for derivatives pricing and to build a modular codebase for experimenting with option models, volatility structures, and Monte Carlo techniques.
+The project combines quantitative pricing models, implied volatility analytics, Monte Carlo simulation, and live option-chain data into an interactive analytics dashboard.
 
+![Terminal](screenshots/Pricing_American.png)
 
-## Features
+---
 
-- Black–Scholes option pricing
-- Implied volatility solver
-- Greeks calculation
-- Monte Carlo pricing of European options
-- Antithetic variates and control variates for variance reduction
-- Convergence analysis of Monte Carlo estimators
-- Retrieval of option chain data using Yahoo Finance
-- Construction of implied volatility smiles across expiries
-- ATM volatility term structure
-- Implied volatility heatmaps, contours, and 3D surfaces
+# Features
 
+* Black–Scholes pricing and analytical Greeks
+* Implied volatility extraction using numerical root-finding
+* American option pricing with binomial trees
+* Asian option pricing using Monte Carlo simulation
+* Bermudan option pricing using Longstaff–Schwartz regression
+* Volatility smile and surface construction from live market data
+* Greeks and risk visualisation
+* Monte Carlo path simulation and convergence analysis
+* Interactive frontend dashboard with FastAPI API integration
 
-## Project Structure
+---
 
+# Pricing Models
 
-demo_options.py         
-Black_Scholes.py – pricing and Greeks  
-implied_vol.py – implied volatility solver  
-GBM_plot.py – geometric Brownian motion path simulation  
-GBM_terminal.py – Monte Carlo pricing and variance reduction  
-market_data.py – option chain download and cleaning  
-volatility_surface.py – smiles, term structure, and surface plots  
-demo_options.py – example script running the full workflow  
+## European Options
 
+Closed-form Black–Scholes pricing with:
 
-## Monte Carlo Simulation
+* Delta
+* Gamma
+* Vega
+* Theta
+* Rho
 
-Monte Carlo pricing is implemented for European call options under geometric Brownian motion.
+## American Options
 
-Variance reduction methods included:
+Binomial lattice pricing with convergence analysis.
 
-- Antithetic variates
-- Control variate using terminal stock price
-- Combined antithetic + control
+## Asian Options
 
-The convergence behaviour of the estimator is analysed by plotting the standard error against the number of simulated paths.
+Arithmetic-average Asian option pricing using Monte Carlo simulation.
 
+## Bermudan Options
 
-### Standard Error vs Number of Paths
+Least-squares Monte Carlo (Longstaff–Schwartz) implementation for early exercise modelling.
 
-![SE vs Paths](Figures/se_vs_paths.png)
+---
 
+# Volatility & Risk Analytics
 
-This shows the expected O(N^-1/2) convergence and the improvement from variance reduction.
+The platform retrieves live option-chain data using Yahoo Finance and constructs:
 
+* Implied volatility smiles
+* ATM term structures
+* Volatility surfaces
+* Greeks exposure metrics
+* Risk and scenario visualisations
 
-## Geometric Brownian Motion Simulation
+![IV Surface](screenshots/IV_Surface.png)
 
-Simulated stock price paths under risk-neutral dynamics.
+![Risk Matrix](screenshots/Risk_Matrix.png)
 
-![GBM Paths](Figures/gbm_paths.png)
+---
 
+# System Architecture
 
-## Implied Volatility Smiles
+## Backend
 
-Option chains are downloaded using Yahoo Finance and used to compute implied volatilities across strikes and expiries.
+* Python
+* FastAPI
+* NumPy
+* Pandas
+* SciPy
 
-![IV Smile](Figures/iv_smile.png)
+The backend handles:
 
+* pricing logic
+* volatility calculations
+* Monte Carlo simulation
+* market data ingestion
+* API endpoints
 
-## Implied Volatility Surface
+## Frontend
 
-The project constructs volatility surfaces in moneyness–time space.
+* React
+* Vite
 
-![IV Surface](Figures/iv_surface.png)
+The frontend provides an interactive terminal-style dashboard for visualising option chains, pricing outputs, volatility surfaces, and risk metrics.
 
+---
 
-## Requirements
+# Example Analytics
 
-Python 3.10+
+## Market Analytics
 
-Required libraries:
+![Market Analytics](screenshots/Market_History.png)
 
-numpy  
-pandas  
-matplotlib  
-yfinance  
-scipy  
+## Bermudan Monte Carlo Pricing
 
+![Bermudan Pricing](screenshots/Pricing_Bermudan.png)
 
-Install with:
+---
 
-pip install numpy pandas matplotlib yfinance scipy
+# Project Structure
 
+```text
+Engine/
+Pricing/
+frontend/
+api.py
+```
 
-## Running the demo
+---
 
-Run the full workflow with:
+# Running the Project
 
-python demo_options.py
+## Backend
 
+```bash
+uvicorn api:app --reload --host 127.0.0.1 --port 8000
+```
 
-This will:
+## Frontend
 
-- simulate GBM paths
-- run Monte Carlo pricing
-- compare variance reduction methods
-- download option data
-- plot smiles and volatility surfaces
+```bash
+cd frontend
+npm run dev
+```
 
+---
 
-## Future work
+# Future Extensions
 
-Possible extensions:
+Planned areas for further development:
 
-- SVI / spline fitting of the volatility surface
-- Local volatility / stochastic volatility models
-- Volatility risk premium analysis
-- Surface dynamics over time
-- Calibration to market data
+* Local volatility models
+* Stochastic volatility models
+* Volatility surface fitting
+* Portfolio risk aggregation
+* Stress testing and scenario analysis
+* Historical volatility surface dynamics
 
+---
 
-## Author
+# Disclaimer
 
-Built as part of self-study in quantitative finance, numerical methods, and derivatives pricing.
+This project was built for educational and research purposes and should not be used for live trading or financial advice.
