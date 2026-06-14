@@ -1,8 +1,11 @@
-from market_data import market_data
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from scipy.interpolate import PchipInterpolator
+try:
+    from Engine.market_data import market_data
+except ModuleNotFoundError:
+    from market_data import market_data
 
 
 def extract_atm_points(surface_df: pd.DataFrame) -> pd.DataFrame:
@@ -15,7 +18,9 @@ def extract_atm_points(surface_df: pd.DataFrame) -> pd.DataFrame:
         atm_rows.append(group.loc[idx])
 
     atm_df = pd.DataFrame(atm_rows).sort_values("T").reset_index(drop=True)
+
     return atm_df
+
 
 def plot_atm_term_structure(atm_df: pd.DataFrame, ticker: str, option_type: str):
     plt.figure(figsize=(10, 6))
@@ -27,8 +32,8 @@ def plot_atm_term_structure(atm_df: pd.DataFrame, ticker: str, option_type: str)
     plt.grid(True)
     plt.show()
 
-def interpolate_smile_to_grid(group: pd.DataFrame, m_grid: np.ndarray, value_col: str = "sigma") -> pd.DataFrame:
 
+def interpolate_smile_to_grid(group: pd.DataFrame, m_grid: np.ndarray, value_col: str = "sigma") -> pd.DataFrame:
     group = group.sort_values("moneyness").copy()
     group = group.dropna(subset=["moneyness", value_col])
     group = group.groupby("moneyness", as_index=False)[value_col].mean()
@@ -48,12 +53,45 @@ def interpolate_smile_to_grid(group: pd.DataFrame, m_grid: np.ndarray, value_col
 
     out = pd.DataFrame({
         "moneyness": m_grid[mask],
+        value_col: y_interp,
+    })
+
+    return out
+
+
+def interpolate_smile_to_grid_pchip(group: pd.DataFrame, m_grid: np.ndarray, value_col: str = "sigma") -> pd.DataFrame:
+    group = group.sort_values("moneyness").copy()
+    group = group.dropna(subset=["moneyness", value_col])
+    group = group.groupby("moneyness", as_index=False)[value_col].mean()
+
+    x = group["moneyness"].to_numpy(dtype=float)
+    y = group[value_col].to_numpy(dtype=float)
+
+    if len(x) < 2:
+        return pd.DataFrame()
+
+    mask = (m_grid >= x.min()) & (m_grid <= x.max())
+
+    if mask.sum() < 2:
+        return pd.DataFrame()
+
+    pchip = PchipInterpolator(x, y)
+    y_interp = pchip(m_grid[mask])
+
+    out = pd.DataFrame({
+        "moneyness": m_grid[mask],
         value_col: y_interp
     })
 
     return out
 
-def build_surface_grid(surface_df: pd.DataFrame, value_col: str = "sigma", m_min: float = 0.90, m_max: float = 1.10, n_moneyness: int = 25) -> pd.DataFrame:
+def build_surface_grid(
+    surface_df: pd.DataFrame,
+    value_col: str = "sigma",
+    m_min: float = 0.90,
+    m_max: float = 1.10,
+    n_moneyness: int = 25,
+) -> pd.DataFrame:
     m_grid = np.linspace(m_min, m_max, n_moneyness)
     rows = []
 
@@ -73,7 +111,53 @@ def build_surface_grid(surface_df: pd.DataFrame, value_col: str = "sigma", m_min
 
     grid_df = pd.concat(rows, ignore_index=True)
     grid_df = grid_df.sort_values(["T", "moneyness"]).reset_index(drop=True)
+
     return grid_df
+
+def build_surface_grid_pchip(
+    surface_df: pd.DataFrame,
+    value_col: str = "sigma",
+    m_min: float = 0.90,
+    m_max: float = 1.10,
+    n_moneyness: int = 25,
+) -> pd.DataFrame:
+    m_grid = np.linspace(m_min, m_max, n_moneyness)
+    rows = []
+
+    for expiry, group in surface_df.groupby("expiry"):
+        interp_df = interpolate_smile_to_grid_pchip(group, m_grid, value_col=value_col)
+
+        if interp_df.empty:
+            continue
+
+        T_val = float(group["T"].iloc[0])
+        interp_df["expiry"] = expiry
+        interp_df["T"] = T_val
+        rows.append(interp_df)
+
+    if not rows:
+        raise ValueError("No valid interpolated surface could be built")
+
+    grid_df = pd.concat(rows, ignore_index=True)
+    grid_df = grid_df.sort_values(["T", "moneyness"]).reset_index(drop=True)
+
+    return grid_df
+
+
+
+def get_surface_vol(surface_df: pd.DataFrame, S0: float, K: float, T: float, value_col: str = "sigma") -> float:
+    grid_df = build_surface_grid(surface_df, value_col=value_col, m_min=0.90, m_max=1.10, n_moneyness=75)
+
+    target_moneyness = K / S0
+
+    grid_df["distance"] = (
+        (grid_df["T"] - T).abs()
+        + (grid_df["moneyness"] - target_moneyness).abs()
+    )
+
+    row = grid_df.loc[grid_df["distance"].idxmin()]
+
+    return float(row[value_col])
 
 
 def plot_iv_heatmap(grid_df: pd.DataFrame, ticker: str, option_type: str, value_col: str = "sigma"):
@@ -112,8 +196,15 @@ def plot_iv_contour(grid_df: pd.DataFrame, ticker: str, option_type: str, value_
     plt.show()
 
 
-def plot_iv_surface_3d(grid_df: pd.DataFrame,  ticker: str, option_type: str, value_col: str = "sigma", elev: float = 25, azim: float = 35, cmap: str = "viridis"):
-
+def plot_iv_surface_3d(
+    grid_df: pd.DataFrame,
+    ticker: str,
+    option_type: str,
+    value_col: str = "sigma",
+    elev: float = 25,
+    azim: float = 35,
+    cmap: str = "viridis",
+):
     pivot = grid_df.pivot(index="moneyness", columns="T", values=value_col).sort_index()
 
     T_vals = pivot.columns.to_numpy(dtype=float)
@@ -131,7 +222,7 @@ def plot_iv_surface_3d(grid_df: pd.DataFrame,  ticker: str, option_type: str, va
         Z,
         cmap=cmap,
         edgecolor="none",
-        antialiased=True
+        antialiased=True,
     )
 
     ax.set_xlabel("Time to Expiry")
@@ -150,9 +241,7 @@ def plot_iv_surface_3d(grid_df: pd.DataFrame,  ticker: str, option_type: str, va
     plt.show()
 
 
-def plot_iv_graphs():
-    ticker = "AAPL"
-
+def plot_iv_graphs(ticker="AAPL"):
     for option_type in ["calls", "puts"]:
         print(f"\n===== {option_type.upper()} =====")
         data = market_data(ticker, option_type=option_type)
@@ -162,22 +251,37 @@ def plot_iv_graphs():
         print("\nATM points:")
         print(atm_df[["expiry", "T", "strike", "moneyness", "sigma"]])
 
-        grid_df = build_surface_grid(
+        raw_grid_df = build_surface_grid(
             surface_df,
             value_col="sigma",
             m_min=0.90,
             m_max=1.10,
-            n_moneyness=75
+            n_moneyness=75,
         )
 
-        print("\nInterpolated surface sample:")
-        print(grid_df.head())
+        pchip_grid_df = build_surface_grid_pchip(
+            surface_df,
+            value_col="sigma",
+            m_min=0.90,
+            m_max=1.10,
+            n_moneyness=75,
+        )
+
+        print("\nRaw interpolated surface sample:")
+        print(raw_grid_df.head())
+
+        print("\nPCHIP interpolated surface sample:")
+        print(pchip_grid_df.head())
 
         plot_atm_term_structure(atm_df, ticker, option_type)
-        plot_iv_heatmap(grid_df, ticker, option_type)
-        plot_iv_contour(grid_df, ticker, option_type)
-        plot_iv_surface_3d(grid_df, ticker, option_type)
 
+        plot_iv_heatmap(raw_grid_df, ticker, f"{option_type} RAW")
+        plot_iv_contour(raw_grid_df, ticker, f"{option_type} RAW")
+        plot_iv_surface_3d(raw_grid_df, ticker, f"{option_type} RAW")
+
+        plot_iv_heatmap(pchip_grid_df, ticker, f"{option_type} PCHIP")
+        plot_iv_contour(pchip_grid_df, ticker, f"{option_type} PCHIP")
+        plot_iv_surface_3d(pchip_grid_df, ticker, f"{option_type} PCHIP")
 
 if __name__ == "__main__":
-    plot_iv_graphs()
+    plot_iv_graphs("AAPL")

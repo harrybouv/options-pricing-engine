@@ -1,23 +1,17 @@
 import numpy as np
 from scipy.stats import norm
 
-#parameters - same as GBM - not ingesting data yet (use yahoo finance api)
-T = 1 # years
-sigma = 0.25 #volatility
-r = 0.04 #risk-free rate
-q = 0.015 #divedend yield
-S0 = 152 # initial price
-K = 160 # strike CHANGE  <------
-
 
 def bs_price(S, K, r, q, T, sigma, option_type="call"):
     option_type = option_type.lower()
 
+    if option_type not in {"call", "put"}:
+        raise ValueError("option_type must be 'call' or 'put'")
+
     if T <= 0:
         if option_type == "call":
-            return 0, 0, max(S - K, 0)
-        else:
-            return 0, 0, max (K - S, 0)
+            return np.nan, np.nan, max(S - K, 0.0)
+        return np.nan, np.nan, max(K - S, 0.0)
 
     if sigma <= 0:
         forward = S * np.exp((r - q) * T)
@@ -28,10 +22,10 @@ def bs_price(S, K, r, q, T, sigma, option_type="call"):
         else:
             price = disc * max(K - forward, 0.0)
 
-        return 0.0, 0.0, price
+        return np.nan, np.nan, price
 
     sqrtT = np.sqrt(T)
-    d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * sqrtT)
+    d1 = (np.log(S / K) + (r - q + 0.5 * sigma**2) * T) / (sigma * sqrtT)
     d2 = d1 - sigma * sqrtT
 
     disc_q = np.exp(-q * T)
@@ -42,7 +36,8 @@ def bs_price(S, K, r, q, T, sigma, option_type="call"):
     else:
         price = K * disc_r * norm.cdf(-d2) - S * disc_q * norm.cdf(-d1)
 
-    return d1, d2, price
+    return d1, d2, float(price)
+
 
 def bs_greeks(S, K, r, q, T, sigma, option_type="call"):
     option_type = option_type.lower()
@@ -60,8 +55,8 @@ def bs_greeks(S, K, r, q, T, sigma, option_type="call"):
             "vega": np.nan,
             "theta": np.nan,
             "rho": np.nan,
-            "d1": float(d1),
-            "d2": float(d2),
+            "d1": float(d1) if np.isfinite(d1) else np.nan,
+            "d2": float(d2) if np.isfinite(d2) else np.nan,
         }
 
     disc_q = np.exp(-q * T)
@@ -69,7 +64,7 @@ def bs_greeks(S, K, r, q, T, sigma, option_type="call"):
     sqrtT = np.sqrt(T)
     pdf_d1 = norm.pdf(d1)
 
-    gamma = (disc_q * pdf_d1) / (S * sigma * sqrtT)
+    gamma = disc_q * pdf_d1 / (S * sigma * sqrtT)
     vega = S * disc_q * pdf_d1 * sqrtT
 
     if option_type == "call":
@@ -101,19 +96,23 @@ def bs_greeks(S, K, r, q, T, sigma, option_type="call"):
     }
 
 
-
-
-
-
 def main():
-    _, _, bs = bs_call_price(S0, K, r, q, T, sigma)
-    g = bs_call_greeks(S0, K, r, q, T, sigma)
+    S0 = 152
+    K = 160
+    r = 0.04
+    q = 0.015
+    T = 1
+    sigma = 0.25
 
-    print("Black Scholes Price:", round(bs, 5))
-    print("delta:", round(g["delta"], 5))
-    print("gamma:", round(g["gamma"], 5))
-    print("vega :", round(g["vega"], 5))
-    print("rho  :", round(g["rho"], 5))
+    _, _, price = bs_price(S0, K, r, q, T, sigma, option_type="call")
+    greeks = bs_greeks(S0, K, r, q, T, sigma, option_type="call")
 
-if __name__ == '__main__':
+    print("Black Scholes Price:", round(price, 5))
+    print("delta:", round(greeks["delta"], 5))
+    print("gamma:", round(greeks["gamma"], 5))
+    print("vega :", round(greeks["vega"], 5))
+    print("rho  :", round(greeks["rho"], 5))
+
+
+if __name__ == "__main__":
     main()

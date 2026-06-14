@@ -1,6 +1,10 @@
 import numpy as np
 from scipy.optimize import brentq
-from Black_Scholes import bs_price, bs_greeks
+
+try:
+    from Engine.Black_Scholes import bs_price, bs_greeks
+except ModuleNotFoundError:
+    from Black_Scholes import bs_price, bs_greeks
 
 
 def check_arbitrage(S, K, r, q, T, market_price, option_type="call"):
@@ -22,8 +26,16 @@ def check_arbitrage(S, K, r, q, T, market_price, option_type="call"):
 
 
 def implied_vol_newton(
-    S, K, r, q, T, market_price, option_type="call",
-    sigma0=0.2, tol=1e-8, max_iter=100
+    S,
+    K,
+    r,
+    q,
+    T,
+    market_price,
+    option_type="call",
+    sigma0=0.2,
+    tol=1e-8,
+    max_iter=100,
 ):
     sigma_est = sigma0
 
@@ -35,7 +47,7 @@ def implied_vol_newton(
         error = model_price - market_price
 
         if abs(error) < tol:
-            return sigma_est
+            return float(sigma_est)
 
         if not np.isfinite(vega) or abs(vega) < 1e-12:
             raise ValueError("Vega too small for stable Newton iteration.")
@@ -49,8 +61,15 @@ def implied_vol_newton(
 
 
 def implied_vol_brent(
-    S, K, r, q, T, market_price, option_type="call",
-    sigma_low=1e-6, sigma_high=5.0
+    S,
+    K,
+    r,
+    q,
+    T,
+    market_price,
+    option_type="call",
+    sigma_low=1e-6,
+    sigma_high=5.0,
 ):
     def f(sigma):
         _, _, price = bs_price(S, K, r, q, T, sigma, option_type=option_type)
@@ -62,7 +81,7 @@ def implied_vol_brent(
     if f_low * f_high > 0:
         raise ValueError("Brent bracket does not contain a root.")
 
-    return brentq(f, sigma_low, sigma_high)
+    return float(brentq(f, sigma_low, sigma_high))
 
 
 def implied_vol(S, K, r, q, T, market_price, option_type="call"):
