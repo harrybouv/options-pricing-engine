@@ -58,7 +58,7 @@ The platform retrieves live option-chain data using Yahoo Finance and constructs
 * Greeks exposure metrics
 * Risk and scenario visualisations
 
-![IV Surface](screenshots/IV_Surface.png)
+<img src="screenshots/IV_Surface.png" width="1000"/>
 
 ![Risk Matrix](screenshots/Risk_Matrix.png)
 
