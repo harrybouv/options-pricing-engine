@@ -17,7 +17,7 @@ The project combines quantitative pricing models, implied volatility analytics, 
 * Bermudan option pricing using Longstaff–Schwartz regression
 * Volatility smile and surface construction from live market data
 * Greeks and risk visualisation
-* Monte Carlo path simulation and convergence analysis
+* Monte Carlo path simulation and convergence analysis using Antithetic and Control Variates
 * Interactive frontend dashboard with FastAPI API integration
 
 ---
@@ -36,7 +36,7 @@ Closed-form Black–Scholes pricing with:
 
 ## American Options
 
-Binomial lattice pricing with convergence analysis.
+Binomial tree pricing with convergence analysis.
 
 ## Asian Options
 
