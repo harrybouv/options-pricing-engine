@@ -95,7 +95,7 @@ The frontend provides an interactive terminal-style dashboard for visualising op
 
 ## Market Analytics
 
-![Market Analytics](screenshots/Market_History.png)
+<img src="screenshots/Market_History.png" width="1000"/>
 
 ## Bermudan Monte Carlo Pricing
 
