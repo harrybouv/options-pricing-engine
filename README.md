@@ -11,7 +11,7 @@ The project combines quantitative pricing models, implied volatility analytics, 
 # Features
 
 * Black–Scholes pricing and analytical Greeks
-* Implied volatility extraction using numerical root-finding
+* Implied volatility extraction using numerical root-finding (Newton-Brent Hybrid)
 * American option pricing with binomial trees
 * Asian option pricing using Monte Carlo simulation
 * Bermudan option pricing using Longstaff–Schwartz regression
